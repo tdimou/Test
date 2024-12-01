@@ -3,7 +3,7 @@ const ssdpDevices = [];
 let canEnable = false;
 
 function open() {
-    client = new WebSocket("ws://localhost:8086");
+    client = new WebSocket("ws://127.0.0.1:8086");
     client.onopen = onOpen;
     client.onmessage = onMessage;
     client.onerror = () => {
@@ -30,7 +30,7 @@ function onOpen() {
             alert('Please select a device first');
             return e.target.checked = false;
         }
-        send({ event: events.SetConfig, key: 'enabled', value: e.target.checked });
+        send({ event: events.SetConfig, key: 'enabled', value: e.target.checked.toString() });
     }
     send({ event: events.ReadConfig, key: 'rpcServer' });
     send({ event: events.ReadConfig, key: 'enabled' });

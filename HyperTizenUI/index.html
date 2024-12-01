@@ -68,6 +68,7 @@
             open();
         };
         testWS.onerror = function () {
+            alert('WebSocket connection failed');
             location.reload();
         };
     };
