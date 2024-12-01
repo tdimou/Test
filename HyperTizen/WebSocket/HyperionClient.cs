@@ -22,7 +22,6 @@ namespace HyperTizen.WebSocket
                 client.client.OnClose += null;
                 client.client.OnError += null;
                 Task.Run(() => client.client.Close());
-                client.client = null;
             }
 
             client = new WebSocketClient(uri);

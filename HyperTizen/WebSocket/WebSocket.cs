@@ -27,22 +27,25 @@ namespace HyperTizen.WebSocket
             {
                 case Event.ScanSSDP:
                 {
-                        using (var deviceLocator = new SsdpDeviceLocator())
+                        Task.Run(async () =>
                         {
-                            var foundDevices = await deviceLocator.SearchAsync();
-                            List<SSDPDevice> devices = new List<SSDPDevice>();
-                            foreach (var foundDevice in foundDevices)
+                            using (var deviceLocator = new SsdpDeviceLocator())
                             {
-                                if (!usnList.Contains(foundDevice.NotificationType)) continue;
+                                var foundDevices = await deviceLocator.SearchAsync();
+                                List<SSDPDevice> devices = new List<SSDPDevice>();
+                                foreach (var foundDevice in foundDevices)
+                                {
+                                    if (!usnList.Contains(foundDevice.NotificationType)) continue;
 
-                                var fullDevice = await foundDevice.GetDeviceInfo();
-                                Uri descLocation = foundDevice.DescriptionLocation;
-                                devices.Add(new SSDPDevice(fullDevice.FriendlyName, descLocation.OriginalString.Replace(descLocation.PathAndQuery, "")));
+                                    var fullDevice = await foundDevice.GetDeviceInfo();
+                                    Uri descLocation = foundDevice.DescriptionLocation;
+                                    devices.Add(new SSDPDevice(fullDevice.FriendlyName, descLocation.OriginalString.Replace(descLocation.PathAndQuery, "")));
+                                }
+
+                                string resultEvent = JsonConvert.SerializeObject(new SSDPScanResultEvent(devices));
+                                Send(resultEvent);
                             }
-
-                            string resultEvent = JsonConvert.SerializeObject(new SSDPScanResultEvent(devices));
-                            Send(resultEvent);
-                        }
+                        });
                         break;
                 }
 
@@ -53,11 +56,11 @@ namespace HyperTizen.WebSocket
                         string result;
                         if (!Preference.Contains(readConfigEvent.key))
                         {
-                            result = JsonConvert.SerializeObject(new ReadConfigResultEvent(true, "Key doesn't exist."));
+                            result = JsonConvert.SerializeObject(new ReadConfigResultEvent(true, readConfigEvent.key, "Key doesn't exist."));
                         } else
                         {
                             string value = Preference.Get<string>(readConfigEvent.key);
-                            result = JsonConvert.SerializeObject(new ReadConfigResultEvent(false, value));
+                            result = JsonConvert.SerializeObject(new ReadConfigResultEvent(false, readConfigEvent.key, value));
                         }
 
                         Send(result);

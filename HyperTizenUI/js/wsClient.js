@@ -26,7 +26,10 @@ function send(json) {
 function onOpen() {
     document.getElementById('status').innerHTML = 'Connected';
     document.getElementById('enabled').onchange = (e) => {
-        if (!canEnable) return alert('Please select a device first');
+        if (!canEnable) {
+            alert('Please select a device first');
+            return e.target.checked = false;
+        }
         send({ event: events.SetConfig, key: 'enabled', value: e.target.checked });
     }
     send({ event: events.ReadConfig, key: 'rpcServer' });
@@ -34,18 +37,18 @@ function onOpen() {
     send({ event: events.ScanSSDP });
     setInterval(() => {
         send({ event: events.ScanSSDP });
-    }, 5000);
+    }, 10000);
 }
 
 function onMessage(data) {
     const msg = JSON.parse(data.data);
     switch(msg.Event) {
         case events.ReadConfigResult:
-            if(msg.Key === 'rpcServer' && !msg.error) {
+            if(msg.key === 'rpcServer' && !msg.error) {
                 canEnable = true;
-                document.getElementById('ssdpDeviceTitle').value = `SSDP Devices (Currently Connected to ${msg.value})`;
-            } else if(msg.Key === 'enabled' && !msg.error) {
-                document.getElementById('enabled').checked = new Boolean(msg.value);
+                document.getElementById('ssdpDeviceTitle').innerText = `SSDP Devices (Currently Connected to ${msg.value})`;
+            } else if(msg.key === 'enabled' && !msg.error) {
+                document.getElementById('enabled').checked = msg.value === 'true';
             }
             break;
         case events.SSDPScanResult: {

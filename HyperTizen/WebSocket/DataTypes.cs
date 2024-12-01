@@ -29,13 +29,16 @@ namespace HyperTizen.WebSocket.DataTypes
 
     public class ReadConfigResultEvent : BasicEvent
     {
-        public ReadConfigResultEvent(bool error, object value)
+        public ReadConfigResultEvent(bool error, string key, object value)
         {
+            this.Event = Event.ReadConfigResult;
             this.error = error;
             this.value = value;
+            this.key = key;
         }
 
         public bool error { get; set; }
+        public string key { get; set; }
         public object value { get; set; }
     }
 

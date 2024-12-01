@@ -15,7 +15,7 @@ api_version: 6.5
 profiles_xml_path: C:/tizen-studio-data/profile/profiles.xml
 #  Signing profile to be used for Tizen package signing 
  # If value is empty, active signing profile will be used
-signing_profile: .
+signing_profile: ''
 #  Build type [debug/ release/ test]
 build_type: debug
 #  Rootstrap for compiling native app
