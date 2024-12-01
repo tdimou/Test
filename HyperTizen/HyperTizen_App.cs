@@ -13,7 +13,7 @@ namespace HyperTizen
         {
             base.OnCreate();
             if (!Preference.Contains("enabled")) Preference.Set("enabled", "false");
-            WebSocketServer.StartServer();
+            Task.Run(() => WebSocketServer.StartServerAsync());
             Display.StateChanged += Display_StateChanged;
             client = new HyperionClient();
         }
@@ -22,11 +22,11 @@ namespace HyperTizen
         {
             if (e.State == DisplayState.Off)
             {
-                client.Stop();
+                Task.Run(() => client.Stop());
             } else if (e.State == DisplayState.Normal)
             {
                 Configuration.Enabled = bool.Parse(Preference.Get<string>("enabled"));
-                client.Start();
+                Task.Run(() => client.Start());
             }
         }
 
