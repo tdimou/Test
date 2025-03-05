@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Tizen.Applications;
 
 namespace HyperTizen
 {
@@ -29,8 +30,9 @@ namespace HyperTizen
         }
         public void SetConfig()
         {
-            ServerIp = "192.168.69.200";//25
+            ServerIp = Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;  //"192.168.69.200";
             ServerPort = 19400;
+            Enabled = bool.Parse(Preference.Get<string>("enabled"));
             Width = 480;
             Height = 270;
         }
@@ -39,5 +41,6 @@ namespace HyperTizen
         public int ServerPort; //Port of hyperhdr server
         public int Width; //Capture Width
         public int Height; //Capture Height
+        public bool Enabled; //Is the service enabled
     }
 }
