@@ -33,8 +33,8 @@ namespace HyperTizen
 
         public static void SendImage(byte[] yData, byte[] uvData, int width, int height)
         {
-            //if (!client.Connected)
-            //    return;
+            if (!client.Connected)
+                return;
             byte[] message = CreateFlatBufferMessage(yData, uvData, width, height);
             SendMessageAndReceiveReply(message);
         }
@@ -45,41 +45,35 @@ namespace HyperTizen
                 return null;
             var builder = new FlatBufferBuilder(yData.Length + uvData.Length + 100);
 
-            // Erstelle FlatBuffer Vektoren für Y- und UV-Daten
             var yVector = NV12Image.CreateDataYVector(builder, yData);
             var uvVector = NV12Image.CreateDataUvVector(builder, uvData);
 
-            // NV12Image Struktur erstellen
             NV12Image.StartNV12Image(builder);
             NV12Image.AddDataY(builder, yVector);
             NV12Image.AddDataUv(builder, uvVector);
             NV12Image.AddWidth(builder, width);
             NV12Image.AddHeight(builder, height);
-            NV12Image.AddStrideY(builder, width);  // Falls kein spezieller Stride nötig ist
+            NV12Image.AddStrideY(builder, width);  //TODO: Check if this is correct
             NV12Image.AddStrideUv(builder, width);
             var nv12Image = NV12Image.EndNV12Image(builder);
 
-            // Image union mit NV12Image erstellen
             Image.StartImage(builder);
             Image.AddDataType(builder, ImageType.NV12Image);
             Image.AddData(builder, nv12Image.Value);
-            Image.AddDuration(builder, -1); // Falls eine bestimmte Dauer nötig ist, ändern
+            Image.AddDuration(builder, -1);
             var imageOffset = Image.EndImage(builder);
 
-            // Request mit Image als Kommando erstellen
             Request.StartRequest(builder);
             Request.AddCommandType(builder, Command.Image);
             Request.AddCommand(builder, imageOffset.Value);
             var requestOffset = Request.EndRequest(builder);
 
-            // FlatBuffer fertigstellen
             builder.Finish(requestOffset.Value);
             return builder.SizedByteArray();
         }
 
         static Reply ParseReply(byte[] receivedData)
         {
-            // FlatBuffer aus empfangenen Daten parsen
             var byteBuffer = new ByteBuffer(receivedData,4); //shift for header
             return Reply.GetRootAsReply(byteBuffer);
         }
@@ -93,19 +87,16 @@ namespace HyperTizen
 
             var originOffset = builder.CreateString("HyperTizen");
 
-            // Registrierungsstruktur erstellen
             Register.StartRegister(builder);
             Register.AddPriority(builder, 123);
             Register.AddOrigin(builder, originOffset);
             var registerOffset = Register.EndRegister(builder);
 
-            // Request mit Register-Kommando erstellen
             Request.StartRequest(builder);
             Request.AddCommandType(builder, Command.Register);
             Request.AddCommand(builder, registerOffset.Value);
             var requestOffset = Request.EndRequest(builder);
 
-            // FlatBuffer-Nachricht fertigstellen
             builder.Finish(requestOffset.Value);
             return builder.SizedByteArray();
         }
@@ -146,7 +137,6 @@ namespace HyperTizen
                     stream.Write(message, 0, message.Length);
                     Debug.WriteLine("Data sent. Waiting for Answer");
 
-                    // Antwort empfangen
                     byte[] buffer = new byte[1024];
                     int bytesRead = stream.Read(buffer, 0, buffer.Length);
                     if (bytesRead > 0)
@@ -155,10 +145,10 @@ namespace HyperTizen
                         byte[] replyData = new byte[bytesRead];
                         Array.Copy(buffer, replyData, bytesRead);
                         string test = BitConverter.ToString(replyData);
-                        // Antwort mit FlatBuffers parsen
+
+
                         Reply reply = ParseReply(replyData);
 
-                        // Antwort ausgeben
                         Debug.WriteLine($"Error: {reply.Error}");
                         Debug.WriteLine($"Video: {reply.Video}");
                         Debug.WriteLine($"Registered: {reply.Registered}");

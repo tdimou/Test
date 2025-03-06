@@ -57,8 +57,8 @@ namespace HyperTizen
         unsafe public static void DoCapture()
         {
             //These lines need to stay here somehow - they arent used but when i delete them the service breaks ??? weird tizen stuff...
-            var width = 480;//480 960
-            var height = 270;//270 540
+            var width = 480;
+            var height = 270;
 
             var yBufferSize = width * height * 2;
 
@@ -67,7 +67,7 @@ namespace HyperTizen
             var uvBufferSizeYUV444 = width * height;
 
             int NV12ySize = Globals.Instance.Width * Globals.Instance.Height;
-            int NV12uvSize = (Globals.Instance.Width * Globals.Instance.Height) / 2; // UV-Plane ishalf as big as Y-Plane in NV12
+            int NV12uvSize = (Globals.Instance.Width * Globals.Instance.Height) / 2; // UV-Plane is half as big as Y-Plane in NV12
 
             Info_t info = new Info_t();
             info.iGivenBufferSize1 = NV12ySize;
@@ -79,7 +79,6 @@ namespace HyperTizen
             //info.iRetColorFormat = 0;
             //info.capture3DMode = 0;
 
-            //int result = CaptureScreenCrop(width, height, ref info,0, width+10, height+10);
             int result = CaptureScreen(Globals.Instance.Width, Globals.Instance.Height, ref info);
             if (result < 0 && isRunning) //only send Notification once
             {
@@ -144,12 +143,6 @@ namespace HyperTizen
             if (hasAllZeroes1 && hasAllZeroes2)
                 throw new Exception("Sanity check Error");
 
-            /*
-            var stringByte1 = Convert.ToBase64String(managedArray1);
-            var stringByte2 = Convert.ToBase64String(managedArray2);
-            Debug.WriteLine(stringByte1);
-            Debug.WriteLine(stringByte2);
-            */
             //(managedArrayY, managedArrayUV) = GenerateDummyYUVColor(Globals.Instance.Width, Globals.Instance.Height);
 
             Networking.SendImage(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height);
@@ -160,14 +153,14 @@ namespace HyperTizen
         public static (byte[] yData, byte[] uvData) GenerateDummyYUVRandom(int width, int height)
         {
             int ySize = width * height;
-            int uvSize = (width * height) / 2; // UV-Plane ist halb so groß wie Y-Plane in NV12
+            int uvSize = (width * height) / 2;
 
-            byte[] yData = new byte[ySize];  // Y-Plane
-            byte[] uvData = new byte[uvSize]; // Interleaved UV-Plane (VU VU VU ...)
+            byte[] yData = new byte[ySize]; 
+            byte[] uvData = new byte[uvSize];
 
             Random rnd = new Random();
-            rnd.NextBytes(yData);  // Zufallswerte für Y (Helligkeit)
-            rnd.NextBytes(uvData); // Zufallswerte für UV (Farbinformation)
+            rnd.NextBytes(yData);
+            rnd.NextBytes(uvData);
 
             return (yData, uvData);
         }
@@ -175,22 +168,21 @@ namespace HyperTizen
         public static (byte[] yData, byte[] uvData) GenerateDummyYUVColor(int width, int height)
         {
             int ySize = width * height;
-            int uvSize = (width * height) / 2; // UV-Plane ist halb so groß wie Y-Plane in NV12
+            int uvSize = (width * height) / 2;
 
-            byte[] yData = new byte[ySize];  // Y-Plane
-            byte[] uvData = new byte[uvSize]; // Interleaved UV-Plane (VU VU VU ...)
+            byte[] yData = new byte[ySize]; 
+            byte[] uvData = new byte[uvSize];
 
-            // Set Y (luminance) to a value that represents brightness
+
             for (int i = 0; i < ySize; i++)
             {
-                yData[i] = 128; // You can adjust this value for darker or brighter green
+                yData[i] = 128; 
             }
 
-            // Set U and V values for green
             for (int i = 0; i < uvSize; i += 2)
             {
-                uvData[i] = 128;   // U component (no red)
-                uvData[i + 1] = 255; // V component (max green)
+                uvData[i] = 128;
+                uvData[i + 1] = 255;
             }
 
             return (yData, uvData);
