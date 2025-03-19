@@ -42,5 +42,6 @@ namespace HyperTizen
         public int Width; //Capture Width
         public int Height; //Capture Height
         public bool Enabled; //Is the service enabled
+        public uint SessionId; //Used for detection if some Threads are executed beacuse of the last Session -> if so ignore these
     }
 }

@@ -25,10 +25,11 @@ namespace HyperTizen
     {
         public HyperionClient()
         {
-            Task.Run(() => Start());
+            //Task.Run(() => Start());
+            Start();
         }
 
-        public async Task Start()
+        public void Start()
         {
             Globals.Instance.SetConfig();
             VideoCapture.InitCapture();
