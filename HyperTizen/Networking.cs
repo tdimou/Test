@@ -31,12 +31,12 @@ namespace HyperTizen
             Debug.WriteLine("Sent Registration");
         }
 
-        public static void SendImage(byte[] yData, byte[] uvData, int width, int height)
+        public static async Task SendImageAsync(byte[] yData, byte[] uvData, int width, int height)
         {
             if (!client.Connected)
                 return;
             byte[] message = CreateFlatBufferMessage(yData, uvData, width, height);
-            SendMessageAndReceiveReply(message);
+            await SendMessageAndReceiveReplyAsync(message);
         }
 
         static byte[] CreateFlatBufferMessage(byte[] yData, byte[] uvData, int width, int height)
@@ -118,7 +118,7 @@ namespace HyperTizen
             }
         }
 
-        static void SendMessageAndReceiveReply(byte[] message)
+        static async Task SendMessageAndReceiveReplyAsync(byte[] message)
         {
             try
             {
@@ -131,10 +131,10 @@ namespace HyperTizen
                     header[1] = (byte)((message.Length >> 16) & 0xFF);
                     header[2] = (byte)((message.Length >> 8) & 0xFF);
                     header[3] = (byte)((message.Length) & 0xFF);
-                    stream.Write(header, 0, header.Length);
+                    await stream.WriteAsync(header, 0, header.Length);
                     
                     Debug.WriteLine(message.Length);
-                    stream.Write(message, 0, message.Length);
+                    await stream.WriteAsync(message, 0, message.Length);
                     Debug.WriteLine("Data sent. Waiting for Answer");
 
                     byte[] buffer = new byte[1024];

@@ -30,11 +30,11 @@ namespace HyperTizen
         }
         public void SetConfig()
         {
-            ServerIp = Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;  //"192.168.69.200";
+            ServerIp = "192.168.69.200";//Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;  
             ServerPort = 19400;
-            Enabled = bool.Parse(Preference.Get<string>("enabled"));
-            Width = 480;
-            Height = 270;
+            Enabled = true;//bool.Parse(Preference.Get<string>("enabled"));
+            Width = 3840/8;
+            Height = 2160/8;
         }
 
         public string ServerIp; //IP of hyperhdr server

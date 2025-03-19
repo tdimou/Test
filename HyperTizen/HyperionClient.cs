@@ -30,8 +30,9 @@ namespace HyperTizen
 
         public async Task Start()
         {
-
             Globals.Instance.SetConfig();
+            VideoCapture.InitCapture();
+
             while (Globals.Instance.Enabled)
             {
                 if(Networking.client != null && Networking.client.Connected)

@@ -1,57 +1,46 @@
-﻿using Newtonsoft.Json;
-using System.Threading.Tasks;
-using Tizen.Applications;
-using System.Net.WebSockets;
-using System.Text;
-using System;
-using System.Threading;
-using System.Runtime.InteropServices;
-using SkiaSharp;
-using Tizen.NUI;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using Tizen.Uix.Tts;
-using System.Net.Sockets;
-using Tizen.Applications.RPCPort;
-using System.IO;
-using Tizen.Messaging.Messages;
-using System.Linq.Expressions;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using HyperTizen.SDK;
 using Tizen.Applications.Notifications;
+
 
 namespace HyperTizen
 {
+
+
+
+
     public static class VideoCapture
     {
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Info_t
+        public static void InitCapture()
         {
-            public Int32 iGivenBufferSize1 { get; set; }   //a6[0] = 0 //ref: "C Buffer Size is too small. needed %d bytes but given %d bytes [%d:%s]" needs to be = iGivenBufferSize2
-            public Int32 iGivenBufferSize2 { get; set; }   //a6[1] = 4 //ref: "C Buffer Size is too small. needed %d bytes but given %d bytes [%d:%s]" needs to be = iGivenBufferSize1
-            public Int32 iWidth { get; set; }        //a6[2] = 8 //ref: IceWater "caputre_param.ret_width"
-            public Int32 iHeight { get; set; }        //a6[3] = 12  //ref: IceWater "caputre_param.ret_height"
-            public IntPtr pImageY { get; set; }      //a6[4] // = 16 dest of memcopy copys v31 in adress with sizeof(needed buffer size(i think)) into this
-            public IntPtr pImageUV { get; set; }      //a6[5] // = 20 use this! dest of memcopy copys v223 in adress with sizeof(needed buffer size) into this
-            public Int32 iRetColorFormat { get; set; }       //a6[6] // = 24  //ref: IceWater "color format is"(YUV420 = 0, YUV422 = 1, YUV444 = 2 , None = 3, Everything else = Error)
-            public Int32 unknown2 { get; set; }       //a6[7] // = 28 
-            public Int32 capture3DMode { get; set; }       // = 32  //ref: "Capture 3D Mode is DRM_SDP_3D_2D [%d:%s]" (DRM_SDP_3D_2D = 0, DRM_SDP_3D_FRAMEPACKING = 1, DRM_SDP_3D_FRAMESEQ = 2, DRM_SDP_3D_TOPBOTTOM = 3, DRM_SDP_3D_SIDEBYSIDE = 4)
-                                                           //unk3 a6[15] // = 60
-        }
-        //int (__fastcall *)(_DWORD, _DWORD, _DWORD)
-        [DllImport("/usr/lib/libsec-video-capture.so.0", CallingConvention = CallingConvention.Cdecl, EntryPoint = "secvideo_api_capture_screen")] //record with ui
-        unsafe private static extern int CaptureScreen(int w, int h, ref Info_t pInfo);
-        [DllImport("/usr/lib/libsec-video-capture.so.0", CallingConvention = CallingConvention.Cdecl, EntryPoint = "secvideo_api_capture_screen_video_only")] // without ui
-        private static extern int CaptureScreenVideo(int w, int h, ref Info_t pInfo);
-        [DllImport("/usr/lib/libsec-video-capture.so.0", CallingConvention = CallingConvention.Cdecl, EntryPoint = "secvideo_api_capture_screen_video_only_crop")] // cropped
-        private static extern int CaptureScreenCrop(int w, int h, ref Info_t pInfo, int iCapture3DMode, int cropW, int cropH);
-        //Main Func Errors:
-        //-1 "Input Pram is Wrong"
-        //-1,-2,-3,-5...negative numbers without 4 "Failed scaler_capture"
+            try
+            {
+                Marshal.PrelinkAll(typeof(SDK.SecVideoCapture));
+            }
+            catch
+            {
+                Debug.WriteLine("VideoCapture InitCapture Error: Libarys not found");
+                Notification notification4 = new Notification
+                {
+                    Title = "HyperTizen",
+                    Content = "VideoCapture InitCapture Error: Libarys not found. Check if your Tizenversion is supported",
+                    Count = 1
+                };
+                NotificationManager.Post(notification4);
+            }
 
-        //Sub Func Errors
-        //-2 Error: capture type %s, plane %s video only %d
-        //-1 req size less or equal that crop size or non video for videoonly found
-        //-1 Home Screen & yt crop size, capture lock, video info related
-        //-4 Netflix/ Widevine Drm Stuff
+            int TizenVersionMajor = SystemInfo.TizenVersionMajor;
+            int TizenVersionMinor = SystemInfo.TizenVersionMinor;
+            bool ImageCapture = SystemInfo.ImageCapture;
+            bool VideoRecording = SystemInfo.VideoRecording;
+            int ScreenWidth = SystemInfo.ScreenWidth;
+            int ScreenHeight = SystemInfo.ScreenHeight;
+            string ModelName = SystemInfo.ModelName;
+        }
 
         static bool isRunning = true;
         unsafe public static void DoCapture()
@@ -59,17 +48,13 @@ namespace HyperTizen
             //These lines need to stay here somehow - they arent used but when i delete them the service breaks ??? weird tizen stuff...
             var width = 480;
             var height = 270;
-
-            var yBufferSize = width * height * 2;
-
             var uvBufferSizeYUV420 = (width / 2) * (height / 2); 
-            var uvBufferSizeYUV422 = (width / 2) * height;
-            var uvBufferSizeYUV444 = width * height;
+
 
             int NV12ySize = Globals.Instance.Width * Globals.Instance.Height;
             int NV12uvSize = (Globals.Instance.Width * Globals.Instance.Height) / 2; // UV-Plane is half as big as Y-Plane in NV12
 
-            Info_t info = new Info_t();
+            SDK.SecVideoCapture.Info_t info = new SDK.SecVideoCapture.Info_t();
             info.iGivenBufferSize1 = NV12ySize;
             info.iGivenBufferSize2 = NV12uvSize;
             //info.iWidth = width;
@@ -79,7 +64,7 @@ namespace HyperTizen
             //info.iRetColorFormat = 0;
             //info.capture3DMode = 0;
 
-            int result = CaptureScreen(Globals.Instance.Width, Globals.Instance.Height, ref info);
+            int result = SDK.SecVideoCapture.CaptureScreen(Globals.Instance.Width, Globals.Instance.Height, ref info); //call itself takes 35-40ms in debug mode so it should be 28-25fps
             if (result < 0 && isRunning) //only send Notification once
             {
                 switch (result)
@@ -143,11 +128,11 @@ namespace HyperTizen
             if (hasAllZeroes1 && hasAllZeroes2)
                 throw new Exception("Sanity check Error");
 
+            //Debug.WriteLine(Convert.ToBase64String(managedArrayY));
+            //Debug.WriteLine(Convert.ToBase64String(managedArrayUV));
             //(managedArrayY, managedArrayUV) = GenerateDummyYUVColor(Globals.Instance.Width, Globals.Instance.Height);
-
-            Networking.SendImage(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height);
-
-
+         
+            Task.Run( ()=>Networking.SendImageAsync(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height)); //100-150ms in debug mode (TODO:make async)
         }
 
         public static (byte[] yData, byte[] uvData) GenerateDummyYUVRandom(int width, int height)
