@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Google.FlatBuffers;
 using hyperhdrnet;
+using Tizen.Messaging.Messages;
 
 namespace HyperTizen
 {
@@ -29,8 +30,14 @@ namespace HyperTizen
         public static void SendRegister()
         {
             client = new TcpClient(Globals.Instance.ServerIp, Globals.Instance.ServerPort);
+            if (client == null)
+                return;
             stream = Networking.client.GetStream();
-            byte[] registrationMessage = Networking.CreateRegistrationMessage(true);
+            if (stream == null)
+                return;
+            byte[] registrationMessage = Networking.CreateRegistrationMessage();
+            if (registrationMessage == null)
+                return;
             var header = new byte[4];
             header[0] = (byte)((registrationMessage.Length >> 24) & 0xFF);
             header[1] = (byte)((registrationMessage.Length >> 16) & 0xFF);
@@ -39,22 +46,27 @@ namespace HyperTizen
             stream.Write(header, 0, header.Length);
             stream.Write(registrationMessage, 0, registrationMessage.Length);
             ReadRegisterReply();
-            Debug.WriteLine("SendRegister: Data sent");
+            Helper.Log.Write(Helper.eLogType.Info, "SendRegister: Data sent");
         }
 
         public static async Task SendImageAsync(byte[] yData, byte[] uvData, int width, int height)
         {
-            if (client == null || !client.Connected)
+            if (client == null || !client.Connected || stream == null)
                 return;
             byte[] message = CreateFlatBufferMessage(yData, uvData, width, height);
-            await SendMessageAndReceiveReplyAsync(message);
-        }
+            if (message == null)
+                return;
 
+            var watchFPS = System.Diagnostics.Stopwatch.StartNew();
+            _ = SendMessageAndReceiveReplyAsync(message);
+            watchFPS.Stop();
+            Helper.Log.Write(Helper.eLogType.Performance, "SendImageAsync elapsed ms: " + watchFPS.ElapsedMilliseconds);
+        }
         static byte[] CreateFlatBufferMessage(byte[] yData, byte[] uvData, int width, int height)
         {
-            if (client == null || !client.Connected)
+            if (client == null || !client.Connected || stream == null)
                 return null;
-            var builder = new FlatBufferBuilder(yData.Length + uvData.Length + 1000);//TODO:Check how to calculate correctly: changed from +100 to +1000 and crashes in the first sec got fixed
+            var builder = new FlatBufferBuilder(yData.Length + uvData.Length + 100);
 
             var yVector = NV12Image.CreateDataYVector(builder, yData);
             var uvVector = NV12Image.CreateDataUvVector(builder, uvData);
@@ -85,16 +97,16 @@ namespace HyperTizen
 
         static Reply ParseReply(byte[] receivedData)
         {
-            var byteBuffer = new ByteBuffer(receivedData,4); //shift for header
+            var byteBuffer = new ByteBuffer(receivedData, 4); //shift for header
             return Reply.GetRootAsReply(byteBuffer);
         }
 
-        public static byte[] CreateRegistrationMessage(bool subscribe)
+        public static byte[] CreateRegistrationMessage()
         {
-            if (client == null || !client.Connected)
+            if (client == null || !client.Connected || stream == null)
                 return null;
 
-            var builder = new FlatBufferBuilder(256 + 1000); //TODO:Check how to calculate correctly
+            var builder = new FlatBufferBuilder(256); //TODO:Check how to calculate correctly
 
             var originOffset = builder.CreateString("HyperTizen");
 
@@ -114,7 +126,7 @@ namespace HyperTizen
 
         public static void ReadRegisterReply()
         {
-            if (client == null || !client.Connected)
+            if (client == null || !client.Connected || stream == null)
                 return;
 
             byte[] buffer = new byte[1024];
@@ -125,7 +137,40 @@ namespace HyperTizen
                 Array.Copy(buffer, replyData, bytesRead);
 
                 Reply reply = ParseReply(replyData);
-                Debug.WriteLine($"ReadRegisterReply: Reply_Registered: {reply.Registered}");
+                Helper.Log.Write(Helper.eLogType.Info, $"ReadRegisterReply: Reply_Registered: {reply.Registered}");
+            }
+        }
+
+        public static async Task ReadImageReply()
+        {
+            if (client == null || !client.Connected || stream == null)
+                return;
+
+            byte[] buffer = new byte[1024];
+            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+            if (bytesRead > 0)
+            {
+
+                byte[] replyData = new byte[bytesRead];
+                Array.Copy(buffer, replyData, bytesRead);
+                Reply reply = ParseReply(replyData);
+
+
+                Helper.Log.Write(Helper.eLogType.Info, $"SendMessageAndReceiveReply: Reply_Video: {reply.Video}");
+                Helper.Log.Write(Helper.eLogType.Info, $"SendMessageAndReceiveReply: Reply_Registered: {reply.Registered}");
+                if (!string.IsNullOrEmpty(reply.Error))
+                {
+                    Helper.Log.Write(Helper.eLogType.Error, "SendMessageAndReceiveReply: (closing tcp client now) Reply_Error: " + reply.Error);
+                    //Debug.WriteLine("SendMessageAndReceiveReply: Faulty msg(size:" + message.Length + "): " + BitConverter.ToString(message));
+                    DisconnectClient();
+                    return;
+                }
+            }
+            else
+            {
+                Helper.Log.Write(Helper.eLogType.Error, "SendMessageAndReceiveReply: (closing tcp client now) No Answer from Server.");
+                DisconnectClient();
+                return;
             }
         }
 
@@ -133,51 +178,28 @@ namespace HyperTizen
         {
             try
             {
-                if (client == null || !client.Connected)
+                if (client == null || !client.Connected || stream == null)
                     return;
                 {
-                    
+
                     var header = new byte[4];
                     header[0] = (byte)((message.Length >> 24) & 0xFF);
                     header[1] = (byte)((message.Length >> 16) & 0xFF);
                     header[2] = (byte)((message.Length >> 8) & 0xFF);
                     header[3] = (byte)((message.Length) & 0xFF);
                     await stream.WriteAsync(header, 0, header.Length);
-                    
-                    Debug.WriteLine("SendMessageAndReceiveReply: message.Length; " + message.Length);
+
+                    Helper.Log.Write(Helper.eLogType.Info, "SendMessageAndReceiveReply: message.Length; " + message.Length);
                     await stream.WriteAsync(message, 0, message.Length);
-                    Debug.WriteLine("SendMessageAndReceiveReply: Data sent");
+                    await stream.FlushAsync();
+                    Helper.Log.Write(Helper.eLogType.Info, "SendMessageAndReceiveReply: Data sent");
+                    _ = ReadImageReply();
 
-                    byte[] buffer = new byte[1024];
-                    int bytesRead = stream.ReadAsync(buffer, 0, buffer.Length).Result;
-                    if (bytesRead > 0)
-                    {
-
-                        byte[] replyData = new byte[bytesRead];
-                        Array.Copy(buffer, replyData, bytesRead);
-                        Reply reply = ParseReply(replyData);
-
-
-                        Debug.WriteLine($"SendMessageAndReceiveReply: Reply_Video: {reply.Video}");
-                        Debug.WriteLine($"SendMessageAndReceiveReply: Reply_Registered: {reply.Registered}");
-                        if (!string.IsNullOrEmpty(reply.Error))
-                        {
-                            Debug.WriteLine("SendMessageAndReceiveReply: (closing tcp client now) Reply_Error: " + reply.Error);
-                            DisconnectClient();
-                            return;
-                        }  
-                    }
-                    else
-                    {
-                        Debug.WriteLine("SendMessageAndReceiveReply: (closing tcp client now) No Answer from Server.");
-                        DisconnectClient();
-                        return;
-                    }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("SendMessageAndReceiveReply: Exception (closing tcp client now) Sending/Receiving: " + ex.Message);
+                Helper.Log.Write(Helper.eLogType.Error, "SendMessageAndReceiveReply: Exception (closing tcp client now) Sending/Receiving: " + ex.Message);
                 DisconnectClient();
                 return;
             }

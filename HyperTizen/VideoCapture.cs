@@ -1,17 +1,29 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using HyperTizen.SDK;
+using Tizen.Applications;
 using Tizen.Applications.Notifications;
 
 
 namespace HyperTizen
 {
+    public class ImageData
+    {
+        public byte[] yData { get; set; }
+        public byte[] uvData { get; set; }
+    }
+    
 
     public static class VideoCapture
     {
+        private static IntPtr pImageY;
+        private static IntPtr pImageUV;
+        private static byte[] managedArrayY;
+        private static byte[] managedArrayUV;
         public static void InitCapture()
         {
             try
@@ -20,15 +32,15 @@ namespace HyperTizen
             }
             catch
             {
-                Debug.WriteLine("VideoCapture InitCapture Error: Libarys not found");
-                Notification notification4 = new Notification
-                {
-                    Title = "HyperTizen",
-                    Content = "VideoCapture InitCapture Error: Libarys not found. Check if your Tizenversion is supported",
-                    Count = 1
-                };
-                NotificationManager.Post(notification4);
+                Helper.Log.Write(Helper.eLogType.Error, "VideoCapture.InitCapture() Error: Libarys not found. Check if your Tizenversion is supported");
             }
+
+            int NV12ySize = Globals.Instance.Width * Globals.Instance.Height;
+            int NV12uvSize = (Globals.Instance.Width * Globals.Instance.Height) / 2; // UV-Plane is half as big as Y-Plane in NV12
+            pImageY = Marshal.AllocHGlobal(NV12ySize);
+            pImageUV = Marshal.AllocHGlobal(NV12uvSize);
+            managedArrayY = new byte[NV12ySize];
+            managedArrayUV = new byte[NV12uvSize];
 
             int TizenVersionMajor = SystemInfo.TizenVersionMajor;
             int TizenVersionMinor = SystemInfo.TizenVersionMinor;
@@ -37,6 +49,7 @@ namespace HyperTizen
             int ScreenWidth = SystemInfo.ScreenWidth;
             int ScreenHeight = SystemInfo.ScreenHeight;
             string ModelName = SystemInfo.ModelName;
+
         }
 
         static bool isRunning = true;
@@ -56,55 +69,33 @@ namespace HyperTizen
             info.iGivenBufferSize2 = NV12uvSize;
             //info.iWidth = width;
             //info.iHeight = height;
-            info.pImageY = Marshal.AllocHGlobal(NV12ySize);
-            info.pImageUV = Marshal.AllocHGlobal(NV12uvSize);
+            info.pImageY = pImageY;
+            info.pImageUV = pImageUV;
             //info.iRetColorFormat = 0;
             //info.capture3DMode = 0;
-
+            var watchFPS = System.Diagnostics.Stopwatch.StartNew();
             int result = SDK.SecVideoCapture.CaptureScreen(Globals.Instance.Width, Globals.Instance.Height, ref info); //call itself takes 35-40ms in debug mode so it should be 28-25fps
+            watchFPS.Stop();
+            var elapsedFPS = 1 / watchFPS.Elapsed.TotalSeconds;
+            Helper.Log.Write(Helper.eLogType.Performance, "SDK.SecVideoCapture.CaptureScreen FPS: " + elapsedFPS);
+            Helper.Log.Write(Helper.eLogType.Performance, "SDK.SecVideoCapture.CaptureScreen elapsed ms: " + watchFPS.ElapsedMilliseconds);
             if (result < 0) //only send Notification once
             {
                 if(isRunning)
                     switch (result)
                     {
                         case -4:
-                            Debug.WriteLine("CaptureScreen Result: -4 [Netflix/ Widevine Drm Error]");
-                            Notification notification4 = new Notification
-                            {
-                                Title = "HyperTizen",
-                                Content = "Capture Error: Seems like you are watching DRM protected content",
-                                Count = 1
-                            };
-                            NotificationManager.Post(notification4);
+                            Helper.Log.Write(Helper.eLogType.Error, "SDK.SecVideoCapture.CaptureScreen Result: -4 [Netflix/ Widevine Drm Error]. Seems like you are watching DRM protected content. Capture is not supported for that yet");
                             break;
                         case -1:
-                            Debug.WriteLine("CaptureScreen Result: -1 [Input Pram is wrong / req size less or equal that crop size / non video for videoonly found]");
-                            Notification notification1 = new Notification
-                            {
-                                Title = "HyperTizen",
-                                Content = "Capture Error: Input Pram seems wrong",
-                                Count = 1
-                            };
-                            NotificationManager.Post(notification1);
+                            Helper.Log.Write(Helper.eLogType.Error, "SDK.SecVideoCapture.CaptureScreen Result: -1 [Input Pram is wrong / req size less or equal that crop size / non video for videoonly found]. This can occur when Settings or Video Inputs of the TV change. Check in HyperHDR if the Live-View is still showing an image.");
                             break;
                         case -2:
-                            Debug.WriteLine("CaptureScreen Result: -2 [capture type %s, plane %s video only %d / Failed scaler_capture]");
-                            Notification notification2 = new Notification
-                            {
-                                Title = "HyperTizen",
-                                Content = "Capture Error: Failed scaler",
-                                Count = 1
-                            };
-                            NotificationManager.Post(notification2);
+                            Helper.Log.Write(Helper.eLogType.Error, "SDK.SecVideoCapture.CaptureScreen Result: -2 [capture type %s, plane %s video only %d / Failed scaler_capture]. Please try restarting the TV (coldboot)");
+                            //Application.Current.Exit();
                             break;
                         default:
-                            Notification notificationN = new Notification
-                            {
-                                Title = "HyperTizen",
-                                Content = "Capture Error: New Error occured. Please report ID:" + result,
-                                Count = 1
-                            };
-                            NotificationManager.Post(notificationN);
+                            Helper.Log.Write(Helper.eLogType.Error, "SDK.SecVideoCapture.CaptureScreen Result: "+ result + " New Error Occured. Please report the shown Number on Github. Also enable every Log Option in the UI, run the Service in Debug Mode and send the Logs.");
                             break;
                     }
                 isRunning = false;
@@ -113,10 +104,8 @@ namespace HyperTizen
 
             isRunning = true;
 
-            byte[] managedArrayY = new byte[NV12ySize];
-            Marshal.Copy(info.pImageY, managedArrayY, 0, NV12ySize);
 
-            byte[] managedArrayUV = new byte[NV12uvSize];
+            Marshal.Copy(info.pImageY, managedArrayY, 0, NV12ySize);
             Marshal.Copy(info.pImageUV, managedArrayUV, 0, NV12uvSize);
 
             bool hasAllZeroes1 = managedArrayY.All(singleByte => singleByte == 0);
@@ -124,16 +113,26 @@ namespace HyperTizen
             if (hasAllZeroes1 && hasAllZeroes2)
                 throw new Exception("Sanity check Error");
 
-            Debug.WriteLine("DoCapture: NV12ySize: " + managedArrayY.Length);
+            Helper.Log.Write(Helper.eLogType.Info, "DoCapture: NV12ySize: " + managedArrayY.Length);
             //Debug.WriteLine(Convert.ToBase64String(managedArrayY).Length);
             //Debug.WriteLine(Convert.ToBase64String(managedArrayY));
             //Debug.WriteLine(Convert.ToBase64String(managedArrayUV));
-            //(managedArrayY, managedArrayUV) = GenerateDummyYUVColor(Globals.Instance.Width, Globals.Instance.Height);
 
-            Task.Run( ()=>Networking.SendImageAsync(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height));
+            //Networking.SendImage(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height);
+            //Task.Run( ()=>Networking.SendImageAsync(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height)); doenst work after a few sec
             //Networking.SendImageAsync(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height); //100-150ms in debug mode
+            _ = Networking.SendImageAsync(managedArrayY, managedArrayUV,Globals.Instance.Width, Globals.Instance.Height);
+            return;
+        }
 
-            int test = 3;
+        unsafe public static void DoDummyCapture()
+        {
+            int NV12ySize = Globals.Instance.Width * Globals.Instance.Height;
+            int NV12uvSize = (Globals.Instance.Width * Globals.Instance.Height) / 2; // UV-Plane is half as big as Y-Plane in NV12
+            byte[] managedArrayY = new byte[NV12ySize];
+            byte[] managedArrayUV = new byte[NV12uvSize];
+            (managedArrayY, managedArrayUV) = GenerateDummyYUVColor(Globals.Instance.Width, Globals.Instance.Height);
+            _ = Networking.SendImageAsync(managedArrayY, managedArrayUV, Globals.Instance.Width, Globals.Instance.Height);
             return;
         }
 

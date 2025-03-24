@@ -30,7 +30,7 @@ namespace HyperTizen
         }
         public void SetConfig()
         {
-            ServerIp = "192.168.69.200";//Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;  
+            ServerIp = Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;   //"192.168.69.200"
             ServerPort = 19400;
             Enabled = true;//bool.Parse(Preference.Get<string>("enabled"));
             Width = 3840/8;
@@ -42,6 +42,5 @@ namespace HyperTizen
         public int Width; //Capture Width
         public int Height; //Capture Height
         public bool Enabled; //Is the service enabled
-        public uint SessionId; //Used for detection if some Threads are executed beacuse of the last Session -> if so ignore these
     }
 }

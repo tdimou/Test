@@ -25,21 +25,28 @@ namespace HyperTizen
     {
         public HyperionClient()
         {
-            //Task.Run(() => Start());
-            Start();
+            Task.Run(() => Start());
         }
 
-        public void Start()
+        public async Task Start()
         {
             Globals.Instance.SetConfig();
             VideoCapture.InitCapture();
 
             while (Globals.Instance.Enabled)
             {
-                if(Networking.client != null && Networking.client.Connected)
-                    VideoCapture.DoCapture();
+                if(Networking.client != null && Networking.client.Client.Connected)
+                {
+                    var watchFPS = System.Diagnostics.Stopwatch.StartNew();
+                    await Task.Run(() =>VideoCapture.DoCapture()); //VideoCapture.DoDummyCapture();
+                    watchFPS.Stop();
+                    var elapsedFPS = 1 / watchFPS.Elapsed.TotalSeconds;
+                    Helper.Log.Write(Helper.eLogType.Performance, "VideoCapture.DoCapture() FPS: " + elapsedFPS);
+                    Helper.Log.Write(Helper.eLogType.Performance, "VideoCapture.DoCapture() elapsed ms: " + watchFPS.ElapsedMilliseconds);
+                }
+                    
                 else
-                    Networking.SendRegister();
+                    await Task.Run(() => Networking.SendRegister());
             }
                 
         }
