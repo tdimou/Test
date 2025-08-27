@@ -139,7 +139,7 @@ namespace HyperTizen.WebSocket
                 case "rpcServer":
                     {
                         App.Configuration.RPCServer = setConfigEvent.value;
-                        App.client.UpdateURI(setConfigEvent.value);
+                        //App.client.UpdateURI(setConfigEvent.value);
                         break;
                     }
                 case "enabled":
@@ -148,7 +148,7 @@ namespace HyperTizen.WebSocket
                         if (!App.Configuration.Enabled && value)
                         {
                             App.Configuration.Enabled = value;
-                            Task.Run(() => App.client.Start(value));
+                            Task.Run(() => App.client.Start());
                         }
                         else App.Configuration.Enabled = value;
                         break;

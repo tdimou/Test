@@ -1,7 +1,6 @@
 ﻿using Tizen.Applications;
 using Tizen.Applications.Notifications;
 using Tizen.System;
-using HyperTizen.WebSocket;
 using System.Threading.Tasks;
 
 namespace HyperTizen
@@ -13,7 +12,6 @@ namespace HyperTizen
         {
             base.OnCreate();
             if (!Preference.Contains("enabled")) Preference.Set("enabled", "false");
-            Task.Run(() => WebSocketServer.StartServerAsync());
             Display.StateChanged += Display_StateChanged;
             client = new HyperionClient();
         }
@@ -25,7 +23,6 @@ namespace HyperTizen
                 Task.Run(() => client.Stop());
             } else if (e.State == DisplayState.Normal)
             {
-                Configuration.Enabled = bool.Parse(Preference.Get<string>("enabled"));
                 Task.Run(() => client.Start());
             }
         }
@@ -70,7 +67,6 @@ namespace HyperTizen
             App app = new App();
             app.Run(args);
         }
-
         public static class Configuration
         {
             public static string RPCServer = Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;
