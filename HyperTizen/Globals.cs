@@ -30,8 +30,10 @@ namespace HyperTizen
         }
         public void SetConfig()
         {
-            ServerIp = Preference.Contains("rpcServer") ? Preference.Get<string>("rpcServer") : null;   //"192.168.69.200"
-            ServerPort = 19400;
+            (string ip, int port) = Helper.SsdpDiscovery.GetHyperIpAndPort();
+            ServerIp = ip; //ServerIp = "192.168.69.200";
+            ServerPort = port; //ServerPort = 19400;
+
             Enabled = true;//bool.Parse(Preference.Get<string>("enabled"));
             Width = 3840/8;
             Height = 2160/8;

@@ -2,7 +2,6 @@
 using Tizen.Applications.Notifications;
 using Tizen.System;
 using System.Threading.Tasks;
-using HyperTizen.WebSocket;
 
 namespace HyperTizen
 {
@@ -13,7 +12,6 @@ namespace HyperTizen
         {
             base.OnCreate();
             if (!Preference.Contains("enabled")) Preference.Set("enabled", "false");
-            Task.Run(() => WebSocketServer.StartServerAsync());
             Display.StateChanged += Display_StateChanged;
             client = new HyperionClient();
         }
