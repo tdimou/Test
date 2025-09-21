@@ -175,4 +175,54 @@ namespace HyperTizen.WebSocket
         // Δένουμε τον listener ΜΟΝΟ στη σταθερή IP
         public static async Task StartServerAsync()
         {
-            var wsServer = new WSServer("http://" + W
+            var wsServer = new WSServer($"http://{WSServerHost}:{WSServerPort}/");
+            await wsServer.StartAsync();
+        }
+
+        // Βοηθητικές σταθερές για να φαίνονται εδώ
+        private const string WSServerHost = "192.168.200.72";
+        private const int WSServerPort = 8086;
+    }
+
+    public class WebSocketClient
+    {
+        private readonly string uri;
+        public ClientWebSocket client;
+        private byte errorTimes = 0;
+
+        public WebSocketClient(string uri)
+        {
+            this.uri = uri;
+            client = new ClientWebSocket();
+        }
+
+        public async Task ConnectAsync()
+        {
+            await client.ConnectAsync(new Uri(uri), CancellationToken.None);
+            _ = ReceiveMessagesAsync();
+        }
+
+        private async Task ReceiveMessagesAsync()
+        {
+            var buffer = new byte[1024 * 4];
+            while (client.State == WebSocketState.Open)
+            {
+                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                }
+                else
+                {
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    OnMessage(message);
+                }
+            }
+        }
+
+        private void OnMessage(string message)
+        {
+            // TODO: Χειρισμός εισερχόμενων μηνυμάτων αν χρειάζεται
+        }
+    }
+}
