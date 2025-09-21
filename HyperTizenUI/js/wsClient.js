@@ -34,17 +34,12 @@ function onOpen() {
   addDeviceIfMissing(FIXED_RPC_URL, 'Hyperion (Fixed)');
     document.getElementById('enabled').onchange = (e) => {
         if (!canEnable) {
-            alert('Please select a device first');
+  addDeviceIfMissing(FIXED_RPC_URL, 'Hyperion (Fixed)');
+            alert('Please select a device first- ADDED');
             return e.target.checked = false;
         }
         send({ event: events.SetConfig, key: 'enabled', value: e.target.checked.toString() });
     }
-    send({ event: events.ReadConfig, key: 'rpcServer' });
-    send({ event: events.ReadConfig, key: 'enabled' });
-    send({ event: events.ScanSSDP });
-    setInterval(() => {
-        send({ event: events.ScanSSDP });
-    }, 10000);
 }
 
 function onMessage(data) {
