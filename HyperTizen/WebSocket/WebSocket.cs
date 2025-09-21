@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.WebSockets;
@@ -15,8 +15,14 @@ namespace HyperTizen.WebSocket
 {
     public class WSServer
     {
-        private HttpListener _httpListener;
-        private List<string> usnList = new List<string>()
+        // --- ΣΤΑΘΕΡΑ ΔΙΕΥΘΥΝΣΗ/ΘΥΡΕΣ ---
+        private const string FixedServerIp = "192.168.200.72";
+        private const int HttpPort = 8086;
+        private const int WsPort   = 8090;
+        private static readonly string FixedWsUri = $"ws://{FixedServerIp}:{WsPort}";
+
+        private readonly HttpListener _httpListener;
+        private readonly List<string> usnList = new List<string>()
         {
             "urn:hyperion-project.org:device:basic:1",
             "urn:hyperhdr.eu:device:basic:1"
@@ -69,27 +75,27 @@ namespace HyperTizen.WebSocket
             switch (data.Event)
             {
                 case Event.ScanSSDP:
-                    {
-                        var devices = await ScanSSDPAsync();
-                        string resultEvent = JsonConvert.SerializeObject(new SSDPScanResultEvent(devices));
-                        await SendAsync(webSocket, resultEvent);
-                        break;
-                    }
+                {
+                    var devices = await ScanSSDPAsync();
+                    string resultEvent = JsonConvert.SerializeObject(new SSDPScanResultEvent(devices));
+                    await SendAsync(webSocket, resultEvent);
+                    break;
+                }
 
                 case Event.ReadConfig:
-                    {
-                        ReadConfigEvent readConfigEvent = JsonConvert.DeserializeObject<ReadConfigEvent>(message);
-                        string result = await ReadConfigAsync(readConfigEvent);
-                        await SendAsync(webSocket, result);
-                        break;
-                    }
+                {
+                    ReadConfigEvent readConfigEvent = JsonConvert.DeserializeObject<ReadConfigEvent>(message);
+                    string result = await ReadConfigAsync(readConfigEvent);
+                    await SendAsync(webSocket, result);
+                    break;
+                }
 
                 case Event.SetConfig:
-                    {
-                        SetConfigEvent setConfigEvent = JsonConvert.DeserializeObject<SetConfigEvent>(message);
-                        SetConfiguration(setConfigEvent);
-                        break;
-                    }
+                {
+                    SetConfigEvent setConfigEvent = JsonConvert.DeserializeObject<SetConfigEvent>(message);
+                    SetConfiguration(setConfigEvent);
+                    break;
+                }
             }
         }
 
@@ -132,81 +138,41 @@ namespace HyperTizen.WebSocket
             await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
+        // Κλειδώνουμε το rpcServer στη σταθερή τιμή, ώστε να μην αλλάζει από μηνύματα
         void SetConfiguration(SetConfigEvent setConfigEvent)
         {
             switch (setConfigEvent.key)
             {
                 case "rpcServer":
-                    {
-                        App.Configuration.RPCServer = setConfigEvent.value;
-                        App.client.UpdateURI(setConfigEvent.value);
-                        break;
-                    }
+                {
+                    App.Configuration.RPCServer = FixedWsUri;
+                    App.client.UpdateURI(FixedWsUri); // ακόμη κι αν το UpdateURI επιτρέπεται, το στέλνουμε στη σταθερή
+                    break;
+                }
                 case "enabled":
+                {
+                    bool value = bool.Parse(setConfigEvent.value);
+                    if (!App.Configuration.Enabled && value)
                     {
-                        bool value = bool.Parse(setConfigEvent.value);
-                        if (!App.Configuration.Enabled && value)
-                        {
-                            App.Configuration.Enabled = value;
-                            Task.Run(() => App.client.Start(value));
-                        }
-                        else App.Configuration.Enabled = value;
-                        break;
+                        App.Configuration.Enabled = value;
+                        Task.Run(() => App.client.Start(value));
                     }
+                    else App.Configuration.Enabled = value;
+                    break;
+                }
             }
 
-            Preference.Set(setConfigEvent.key, setConfigEvent.value);
+            // Μην αποθηκεύεις διαφορετική τιμή για το rpcServer — παραμένει σταθερό
+            if (setConfigEvent.key != "rpcServer")
+                Preference.Set(setConfigEvent.key, setConfigEvent.value);
+            else
+                Preference.Set("rpcServer", FixedWsUri);
         }
     }
 
     public static class WebSocketServer
     {
+        // Δένουμε τον listener ΜΟΝΟ στη σταθερή IP
         public static async Task StartServerAsync()
         {
-            var wsServer = new WSServer("http://+:8086/");
-            await wsServer.StartAsync();
-        }
-    }
-
-    public class WebSocketClient
-    {
-        private string uri;
-        public ClientWebSocket client;
-        private byte errorTimes = 0;
-
-        public WebSocketClient(string uri)
-        {
-            this.uri = uri;
-            client = new ClientWebSocket();
-        }
-
-        public async Task ConnectAsync()
-        {
-            await client.ConnectAsync(new Uri(uri), CancellationToken.None);
-            _ = ReceiveMessagesAsync();
-        }
-
-        private async Task ReceiveMessagesAsync()
-        {
-            var buffer = new byte[1024 * 4];
-            while (client.State == WebSocketState.Open)
-            {
-                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                }
-                else
-                {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    OnMessage(message);
-                }
-            }
-        }
-
-        private void OnMessage(string message)
-        {
-
-        }
-    }
-}
+            var wsServer = new WSServer("http://" + W
