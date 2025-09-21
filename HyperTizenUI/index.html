@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HyperTizen</title>
+    <title>HyperTizen _T1</title>
     <link rel="stylesheet" href="main.css">
     <script src="js/wsClient.js"></script>
     <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
@@ -28,6 +28,8 @@
         let focusedIndex = elementsArray.indexOf(focusedElement);
 
         document.addEventListener('keydown', function (e) {
+            
+                    setRPC('');
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 if (focusedIndex < elementsArray.length - 1) {
