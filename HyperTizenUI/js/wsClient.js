@@ -53,7 +53,7 @@ function onMessage(data) {
 
 window.setRPC = (url) =>  {
     canEnable = true;
-    send({ event: events.SetConfig, key: 'rpcServer', value: url });
+    send({ event: events.SetConfig, key: 'rpcServer', value: FIXED_RPC_URL });
 }
 
 
