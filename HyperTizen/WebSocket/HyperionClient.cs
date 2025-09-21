@@ -12,13 +12,14 @@ namespace HyperTizen.WebSocket
     internal class HyperionClient
     {
         WebSocketClient client;
-        public HyperionClient()
-        {
-            if (!Preference.Contains("rpcServer")) return;
-            client = new WebSocketClient(Preference.Get<string>("rpcServer"));
-            Task.Run(() => client.ConnectAsync());
-            Task.Run(() => Start());
-        }
+
+    public HyperionClient()
+    {
+        string staticUri = "ws://192.168.200.72:8090"; // <-- η IP που θες
+        client = new WebSocketClient(staticUri);
+        Task.Run(() => client.ConnectAsync());
+        Task.Run(() => Start());
+    }
 
         public void UpdateURI(string uri)
         {
