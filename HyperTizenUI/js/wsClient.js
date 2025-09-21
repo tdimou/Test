@@ -25,6 +25,7 @@ function send(json) {
 }
 
 function onOpen() {
+    ssdpDevices.push({ 'wss://192.168.200.72:8092/json-rpc', 'Hyperion' });
     document.getElementById('status').innerHTML = 'Connected';
     document.getElementById('enabled').onchange = (e) => {
         if (!canEnable) {
@@ -72,7 +73,4 @@ function onMessage(data) {
     }
 }
 
-window.setRPC = (url) =>  {
-    canEnable = true;
-    send({ event: events.SetConfig, key: 'rpcServer', value: url });
-}
+window.setRPC('wss://192.168.200.72:8092/json-rpc');
